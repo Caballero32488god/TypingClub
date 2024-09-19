@@ -1,155 +1,89 @@
-(function() {
-    let isMoving = false;
-    let offsetX, offsetY;
+// Create GUI elements
+const guiContainer = document.createElement('div');
+guiContainer.style.position = 'fixed';
+guiContainer.style.bottom = '10px';
+guiContainer.style.right = '10px';
+guiContainer.style.background = '#1e1e1e'; // Dark background
+guiContainer.style.color = '#00ff00'; // Green text
+guiContainer.style.padding = '15px';
+guiContainer.style.border = '1px solid #00ff00'; // Green border
+guiContainer.style.borderRadius = '5px';
+guiContainer.style.zIndex = '9999';
+guiContainer.style.fontFamily = 'monospace'; // Monospaced font
+guiContainer.style.display = 'block'; // Start visible
 
-    // Function to create and show the GUI
-    function showGUI() {
-        if (document.querySelector('.overlay')) return; // Prevent multiple overlays
+guiContainer.innerHTML = `
+    <h3 style="margin: 0;">Masterboy123 Hacks</h3>
+    <button id="start-auto-play" style="background: #00ff00; color: black; border: none; cursor: pointer; padding: 5px;">Start Auto Play</button>
+    <button id="stop-auto-play" disabled style="background: #ff5555; color: black; border: none; cursor: not-allowed; padding: 5px;">Stop Auto Play</button>
+    <div id="status" style="margin-top: 10px; color: #ffffff;"></div>
+`;
 
-        const overlay = document.createElement('div');
-        overlay.className = 'overlay'; // Add a class for easy querying
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        overlay.style.zIndex = '9999';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.color = 'white';
-        overlay.style.fontFamily = 'Arial, sans-serif';
+document.body.appendChild(guiContainer);
 
-        const container = document.createElement('div');
-        container.style.backgroundColor = '#333';
-        container.style.padding = '15px';
-        container.style.borderRadius = '8px';
-        container.style.width = '300px'; // Set a fixed width for the GUI
-        container.style.textAlign = 'center'; // Center the text
-        container.style.position = 'relative'; // For dragging
+// Initialize control variables
+let autoPlayActive = false;
+const minDelay = 60;
+const maxDelay = 60;
 
-        container.addEventListener('mousedown', (e) => {
-            isMoving = true;
-            offsetX = e.clientX - container.getBoundingClientRect().left;
-            offsetY = e.clientY - container.getBoundingClientRect().top;
-        });
+const keyOverrides = {
+    [String.fromCharCode(160)]: ' ' // Convert hard space to normal space
+};
 
-        document.addEventListener('mouseup', () => {
-            isMoving = false;
-        });
+function updateStatus(message) {
+    document.getElementById('status').innerText = message;
+}
 
-        document.addEventListener('mousemove', (e) => {
-            if (isMoving) {
-                container.style.left = `${e.clientX - offsetX}px`;
-                container.style.top = `${e.clientY - offsetY}px`;
-                container.style.position = 'fixed'; // Fix position during drag
-            }
-        });
-
-        const message = document.createElement('div');
-        message.textContent = 'Enter delay times and click Start!';
-        message.style.marginBottom = '10px';
-        message.style.fontSize = '14px'; // Smaller font size
-
-        const minDelayInput = document.createElement('input');
-        minDelayInput.type = 'number';
-        minDelayInput.value = '60';
-        minDelayInput.placeholder = 'Min Delay (ms)';
-        minDelayInput.style.width = '100%'; // Full width
-        minDelayInput.style.marginBottom = '5px';
-        minDelayInput.style.color = 'black'; // Set text color to black
-
-        const maxDelayInput = document.createElement('input');
-        maxDelayInput.type = 'number';
-        maxDelayInput.value = '60';
-        maxDelayInput.placeholder = 'Max Delay (ms)';
-        maxDelayInput.style.width = '100%'; // Full width
-        maxDelayInput.style.marginBottom = '10px';
-        maxDelayInput.style.color = 'black'; // Set text color to black
-
-        const startButton = document.createElement('button');
-        startButton.textContent = 'Start Typing';
-        startButton.style.width = '100%'; // Full width
-
-        const closeButton = document.createElement('button');
-        closeButton.textContent = 'Close';
-        closeButton.style.width = '100%'; // Full width
-        closeButton.style.marginTop = '5px';
-
-        closeButton.addEventListener('click', () => {
-            localStorage.setItem('guiVisible', 'false'); // Store the visibility state
-            document.body.removeChild(overlay); // Remove overlay
-        });
-
-        container.appendChild(message);
-        container.appendChild(minDelayInput);
-        container.appendChild(maxDelayInput);
-        container.appendChild(startButton);
-        container.appendChild(closeButton);
-        overlay.appendChild(container);
-        document.body.appendChild(overlay);
-
-        startButton.addEventListener('click', () => {
-            const minDelay = parseInt(minDelayInput.value, 10);
-            const maxDelay = parseInt(maxDelayInput.value, 10);
-
-            if (!isNaN(minDelay) && !isNaN(maxDelay)) {
-                autoPlay(minDelay, maxDelay);
-            } else {
-                alert("Please enter valid numbers for delays.");
-            }
-        });
-    }
-
-    // Function to get target characters
-    function getTargetCharacters() {
-        const els = Array.from(document.querySelectorAll('.token span.token_unit'));
-        return els.map(el => {
+function getTargetCharacters() {
+    const els = Array.from(document.querySelectorAll('.token span.token_unit'));
+    const chrs = els
+        .map(el => {
             if (el.firstChild?.classList?.contains('_enter')) {
-                return '\n';
+                return '\n'; // Special case: ENTER
             }
-            const text = el.textContent[0];
-            return text === String.fromCharCode(160) ? ' ' : text; // Convert hard space to normal space
-        }).filter(char => char !== undefined); // Ensure no undefined characters
+            let text = el.textContent[0];
+            return text;
+        })
+        .map(c => keyOverrides.hasOwnProperty(c) ? keyOverrides[c] : c); // Convert special characters
+    return chrs;
+}
+
+function recordKey(chr) {
+    window.core.record_keydown_time(chr); // Send it to the internal API
+}
+
+function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
+
+async function autoPlay(finish) {
+    const chrs = getTargetCharacters();
+    for (let i = 0; i < chrs.length - (!finish); ++i) {
+        if (!autoPlayActive) break; // Stop if inactive
+        const c = chrs[i];
+        recordKey(c);
+        updateStatus(`Typing: ${c}`);
+        await sleep(Math.random() * (maxDelay - minDelay) + minDelay);
     }
-
-    function recordKey(chr) {
-        window.core.record_keydown_time(chr);
+    if (autoPlayActive) {
+        updateStatus("Finished!");
     }
+}
 
-    function sleep(ms) {
-        return new Promise(r => setTimeout(r, ms));
-    }
+// Start Auto Play
+document.getElementById('start-auto-play').addEventListener('click', () => {
+    autoPlayActive = true;
+    document.getElementById('start-auto-play').disabled = true;
+    document.getElementById('stop-auto-play').disabled = false;
+    updateStatus("Auto Play Started...");
 
-    async function autoPlay(minDelay, maxDelay) {
-        const chrs = getTargetCharacters();
-        for (let i = 0; i < chrs.length; ++i) {
-            const c = chrs[i];
-            recordKey(c);
-            await sleep(Math.random() * (maxDelay - minDelay) + minDelay);
-        }
-        localStorage.setItem('guiVisible', 'false'); // Hide the GUI after completion
-        const overlay = document.querySelector('.overlay');
-        if (overlay) {
-            document.body.removeChild(overlay); // Remove overlay after completion
-        }
-    }
+    autoPlay(true);
+});
 
-    // Keyboard listener for showing the GUI with "Control + Shift + E" and hiding it with "Control + E"
-    document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.shiftKey && e.key === 'E') {
-            showGUI();
-            localStorage.setItem('guiVisible', 'true');
-        } else if (e.ctrlKey && e.key === 'E') {
-            const overlay = document.querySelector('.overlay');
-            if (overlay) {
-                localStorage.setItem('guiVisible', 'false');
-                document.body.removeChild(overlay);
-            }
-        }
-    });
-
-    // Show the GUI on page load
-    showGUI();
-})();
+// Stop Auto Play
+document.getElementById('stop-auto-play').addEventListener('click', () => {
+    autoPlayActive = false;
+    document.getElementById('start-auto-play').disabled = false;
+    document.getElementById('stop-auto-play').disabled = true;
+    updateStatus("Auto Play Stopped.");
+});
