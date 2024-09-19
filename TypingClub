@@ -67,6 +67,22 @@ async function autoPlay(finish) {
     }
     if (autoPlayActive) {
         updateStatus("Finished!");
+        await sleep(5000); // Wait for 5 seconds before going to the next lesson
+        goToNextLesson(); // Navigate to the next lesson
+    }
+}
+
+async function goToNextLesson() {
+    // Find the button with the specific class names
+    const continueButton = document.querySelector('.btn.navbar-continue.primary.hoverable-button');
+
+    if (continueButton) {
+        continueButton.click(); // Simulate a click on the Continue button
+        updateStatus("Navigating to the next lesson...");
+        await sleep(5000); // Wait for 5 seconds for the page to load
+        autoPlay(true); // Start auto typing after navigating to the next lesson
+    } else {
+        updateStatus("Continue button not found.");
     }
 }
 
