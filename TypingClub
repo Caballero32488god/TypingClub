@@ -1,0 +1,152 @@
+(function() {
+    let isMoving = false;
+    let offsetX, offsetY;
+
+    // Function to create and show the GUI
+    function showGUI() {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.color = 'white';
+        overlay.style.fontFamily = 'Arial, sans-serif';
+
+        const container = document.createElement('div');
+        container.style.backgroundColor = '#333';
+        container.style.padding = '15px';
+        container.style.borderRadius = '8px';
+        container.style.width = '300px'; // Set a fixed width for the GUI
+        container.style.textAlign = 'center'; // Center the text
+        container.style.position = 'relative'; // For dragging
+
+        container.addEventListener('mousedown', (e) => {
+            isMoving = true;
+            offsetX = e.clientX - container.getBoundingClientRect().left;
+            offsetY = e.clientY - container.getBoundingClientRect().top;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isMoving = false;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isMoving) {
+                container.style.left = `${e.clientX - offsetX}px`;
+                container.style.top = `${e.clientY - offsetY}px`;
+                container.style.position = 'fixed'; // Fix position during drag
+            }
+        });
+
+        const message = document.createElement('div');
+        message.textContent = 'Enter delay times and click Start!';
+        message.style.marginBottom = '10px';
+        message.style.fontSize = '14px'; // Smaller font size
+
+        const minDelayInput = document.createElement('input');
+        minDelayInput.type = 'number';
+        minDelayInput.value = '60';
+        minDelayInput.placeholder = 'Min Delay (ms)';
+        minDelayInput.style.width = '100%'; // Full width
+        minDelayInput.style.marginBottom = '5px';
+        minDelayInput.style.color = 'black'; // Set text color to black
+
+        const maxDelayInput = document.createElement('input');
+        maxDelayInput.type = 'number';
+        maxDelayInput.value = '60';
+        maxDelayInput.placeholder = 'Max Delay (ms)';
+        maxDelayInput.style.width = '100%'; // Full width
+        maxDelayInput.style.marginBottom = '10px';
+        maxDelayInput.style.color = 'black'; // Set text color to black
+
+        const startButton = document.createElement('button');
+        startButton.textContent = 'Start Typing';
+        startButton.style.width = '100%'; // Full width
+
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.width = '100%'; // Full width
+        closeButton.style.marginTop = '5px';
+
+        closeButton.addEventListener('click', () => {
+            localStorage.setItem('guiVisible', 'false'); // Store the visibility state
+            document.body.removeChild(overlay); // Remove overlay
+        });
+
+        container.appendChild(message);
+        container.appendChild(minDelayInput);
+        container.appendChild(maxDelayInput);
+        container.appendChild(startButton);
+        container.appendChild(closeButton);
+        overlay.appendChild(container);
+        document.body.appendChild(overlay);
+
+        startButton.addEventListener('click', () => {
+            const minDelay = parseInt(minDelayInput.value, 10);
+            const maxDelay = parseInt(maxDelayInput.value, 10);
+
+            if (!isNaN(minDelay) && !isNaN(maxDelay)) {
+                autoPlay(minDelay, maxDelay);
+            } else {
+                alert("Please enter valid numbers for delays.");
+            }
+        });
+    }
+
+    // Function to get target characters
+    function getTargetCharacters() {
+        const els = Array.from(document.querySelectorAll('.token span.token_unit'));
+        return els.map(el => {
+            if (el.firstChild?.classList?.contains('_enter')) {
+                return '\n';
+            }
+            const text = el.textContent[0];
+            return text === String.fromCharCode(160) ? ' ' : text; // Convert hard space to normal space
+        }).filter(char => char !== undefined); // Ensure no undefined characters
+    }
+
+    function recordKey(chr) {
+        window.core.record_keydown_time(chr);
+    }
+
+    function sleep(ms) {
+        return new Promise(r => setTimeout(r, ms));
+    }
+
+    async function autoPlay(minDelay, maxDelay) {
+        const chrs = getTargetCharacters();
+        for (let i = 0; i < chrs.length; ++i) {
+            const c = chrs[i];
+            recordKey(c);
+            await sleep(Math.random() * (maxDelay - minDelay) + minDelay);
+        }
+        localStorage.setItem('guiVisible', 'false'); // Hide the GUI after completion
+        document.body.removeChild(document.querySelector('div[style*="fixed"]')); // Remove overlay after completion
+    }
+
+    // Keyboard listener for showing the GUI with "Enter" and hiding it with "E"
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            showGUI();
+            localStorage.setItem('guiVisible', 'true');
+        } else if (e.key === 'e') {
+            const guiVisible = localStorage.getItem('guiVisible');
+            if (guiVisible !== 'false') {
+                localStorage.setItem('guiVisible', 'false');
+                const overlay = document.querySelector('div[style*="fixed"]');
+                if (overlay) {
+                    document.body.removeChild(overlay);
+                }
+            }
+        }
+    });
+
+    // Show the GUI on page load
+    showGUI();
+})();
