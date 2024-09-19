@@ -4,7 +4,10 @@
 
     // Function to create and show the GUI
     function showGUI() {
+        if (document.querySelector('.overlay')) return; // Prevent multiple overlays
+
         const overlay = document.createElement('div');
+        overlay.className = 'overlay'; // Add a class for easy querying
         overlay.style.position = 'fixed';
         overlay.style.top = '0';
         overlay.style.left = '0';
@@ -127,22 +130,22 @@
             await sleep(Math.random() * (maxDelay - minDelay) + minDelay);
         }
         localStorage.setItem('guiVisible', 'false'); // Hide the GUI after completion
-        document.body.removeChild(document.querySelector('div[style*="fixed"]')); // Remove overlay after completion
+        const overlay = document.querySelector('.overlay');
+        if (overlay) {
+            document.body.removeChild(overlay); // Remove overlay after completion
+        }
     }
 
-    // Keyboard listener for showing the GUI with "Enter" and hiding it with "E"
+    // Keyboard listener for showing the GUI with "Control + Shift + E" and hiding it with "Control + E"
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
+        if (e.ctrlKey && e.shiftKey && e.key === 'E') {
             showGUI();
             localStorage.setItem('guiVisible', 'true');
-        } else if (e.key === 'e') {
-            const guiVisible = localStorage.getItem('guiVisible');
-            if (guiVisible !== 'false') {
+        } else if (e.ctrlKey && e.key === 'E') {
+            const overlay = document.querySelector('.overlay');
+            if (overlay) {
                 localStorage.setItem('guiVisible', 'false');
-                const overlay = document.querySelector('div[style*="fixed"]');
-                if (overlay) {
-                    document.body.removeChild(overlay);
-                }
+                document.body.removeChild(overlay);
             }
         }
     });
