@@ -1,0 +1,105 @@
+// Create GUI elements
+const guiContainer = document.createElement('div');
+guiContainer.style.position = 'fixed';
+guiContainer.style.bottom = '10px';
+guiContainer.style.right = '10px';
+guiContainer.style.background = '#ff5555'; // Lighter red background
+guiContainer.style.color = '#00ff00'; // Green text
+guiContainer.style.padding = '15px';
+guiContainer.style.border = '1px solid #00ff00'; // Green border
+guiContainer.style.borderRadius = '5px';
+guiContainer.style.zIndex = '9999';
+guiContainer.style.fontFamily = 'monospace'; // Monospaced font
+guiContainer.style.display = 'block'; // Start visible
+
+guiContainer.innerHTML = `
+    <h3 style="margin: 0; color: #add8e6;">Christopher Parr Hacks</h3>
+    <button id="start-auto-play" style="background: #add8e6; color: black; border: none; cursor: pointer; padding: 5px;">Start Auto Play</button>
+    <button id="stop-auto-play" disabled style="background: #ffffff; color: black; border: none; cursor: not-allowed; padding: 5px;">Stop Auto Play</button>
+    <div id="status" style="margin-top: 10px; color: #ffffff;"></div>
+`;
+
+document.body.appendChild(guiContainer);
+
+// Initialize control variables
+let autoPlayActive = false;
+const minDelay = 60;
+const maxDelay = 60;
+
+const keyOverrides = {
+    [String.fromCharCode(160)]: ' ' // Convert hard space to normal space
+};
+
+function updateStatus(message) {
+    document.getElementById('status').innerText = message;
+}
+
+function getTargetCharacters() {
+    const els = Array.from(document.querySelectorAll('.token span.token_unit'));
+    const chrs = els
+        .map(el => {
+            if (el.firstChild?.classList?.contains('_enter')) {
+                return '\n'; // Special case: ENTER
+            }
+            let text = el.textContent[0];
+            return text;
+        })
+        .map(c => keyOverrides.hasOwnProperty(c) ? keyOverrides[c] : c); // Convert special characters
+    return chrs;
+}
+
+function recordKey(chr) {
+    window.core.record_keydown_time(chr); // Send it to the internal API
+}
+
+function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
+
+async function autoPlay(finish) {
+    const chrs = getTargetCharacters();
+    for (let i = 0; i < chrs.length - (!finish); ++i) {
+        if (!autoPlayActive) break; // Stop if inactive
+        const c = chrs[i];
+        recordKey(c);
+        updateStatus(`Typing: ${c}`);
+        await sleep(Math.random() * (maxDelay - minDelay) + minDelay);
+    }
+    if (autoPlayActive) {
+        updateStatus("Finished!");
+        await sleep(5000); // Wait for 5 seconds before going to the next lesson
+        goToNextLesson(); // Navigate to the next lesson
+    }
+}
+
+async function goToNextLesson() {
+    // Find the button with the specific class names
+    const continueButton = document.querySelector('.btn.navbar-continue.primary.hoverable-button');
+
+    if (continueButton) {
+        continueButton.click(); // Simulate a click on the Continue button
+        updateStatus("Navigating to the next lesson...");
+        await sleep(5000); // Wait for 5 seconds for the page to load
+        autoPlay(true); // Start auto typing after navigating to the next lesson
+    } else {
+        updateStatus("Continue button not found.");
+    }
+}
+
+// Start Auto Play
+document.getElementById('start-auto-play').addEventListener('click', () => {
+    autoPlayActive = true;
+    document.getElementById('start-auto-play').disabled = true;
+    document.getElementById('stop-auto-play').disabled = false;
+    updateStatus("Auto Play Started...");
+
+    autoPlay(true);
+});
+
+// Stop Auto Play
+document.getElementById('stop-auto-play').addEventListener('click', () => {
+    autoPlayActive = false;
+    document.getElementById('start-auto-play').disabled = false;
+    document.getElementById('stop-auto-play').disabled = true;
+    updateStatus("Auto Play Stopped.");
+});
